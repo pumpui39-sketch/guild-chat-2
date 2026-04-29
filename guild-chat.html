@@ -1,0 +1,1797 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GuildChat">
+<meta name="theme-color" content="#e8f5e9">
+<title>GuildChat</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #e8f5e9;
+    --surface: #f1f8f1;
+    --surface2: #dcedc8;
+    --border: #a5d6a7;
+    --accent: #388e3c;
+    --accent2: #795548;
+    --gold: #f9a825;
+    --green: #2e7d32;
+    --red: #c62828;
+    --yellow: #f9a825;
+    --text: #1b2e1c;
+    --muted: #558b5a;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    font-size: 16px;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(56,142,60,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,142,60,0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== NOTIFICATION BANNER ===== */
+  #banner {
+    position: fixed;
+    top: -80px;
+    left: 0; right: 0;
+    z-index: 9999;
+    padding: 0 12px;
+    transition: top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  #banner.show { top: 8px; }
+  .banner-inner {
+    background: linear-gradient(135deg, #1a2235ee, #0a1628ee);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 4px 30px rgba(0,212,255,0.3), 0 0 0 1px rgba(0,212,255,0.1);
+  }
+  .banner-icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    border: 2px solid var(--accent);
+  }
+  .banner-content { flex: 1; min-width: 0; }
+  .banner-name { font-size: 11px; color: var(--accent); font-weight: 700; font-family: 'Rajdhani', sans-serif; letter-spacing: 1px; }
+  .banner-msg { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .banner-time { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+
+  /* ===== HEADER ===== */
+  #header {
+    position: relative;
+    z-index: 10;
+    background: linear-gradient(180deg, #0d1526 0%, transparent 100%);
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .guild-logo {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 20px rgba(0,212,255,0.4);
+    flex-shrink: 0;
+  }
+  .guild-info { flex: 1; }
+  .guild-name { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+  .guild-sub { font-size: 11px; color: var(--muted); }
+  .header-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+  }
+  .icon-btn:hover, .icon-btn.active { background: var(--border); color: var(--accent); border-color: var(--accent); }
+  .icon-btn.alarm-set { color: var(--gold); border-color: var(--gold); background: rgba(255,215,0,0.1); }
+
+  /* ===== TABS ===== */
+  #tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 10;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 4px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+
+  /* ===== PAGES ===== */
+  .page { display: none; flex: 1; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
+  .page.active { display: flex; }
+
+  /* ===== CHAT PAGE ===== */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scroll-behavior: smooth;
+  }
+  #messages::-webkit-scrollbar { width: 3px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .date-divider {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    padding: 4px 0;
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 1px;
+    position: relative;
+  }
+  .date-divider::before, .date-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%; height: 1px;
+    background: var(--border);
+    width: 30%;
+  }
+  .date-divider::before { left: 0; }
+  .date-divider::after { right: 0; }
+
+  .msg {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    animation: msgIn 0.3s ease;
+  }
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg.mine { flex-direction: row-reverse; }
+  .msg-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    border: 2px solid var(--border);
+  }
+  .msg-body { max-width: 72%; }
+  .msg.mine .msg-body { align-items: flex-end; }
+  .msg-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+    font-size: 10px;
+  }
+  .msg.mine .msg-meta { flex-direction: row-reverse; }
+  .msg-name { font-weight: 700; font-family: 'Rajdhani', sans-serif; font-size: 12px; letter-spacing: 0.5px; }
+  .msg-time { color: var(--muted); }
+  .msg-flag { font-size: 13px; }
+  .msg-bubble {
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 16px;
+    line-height: 1.6;
+    word-break: break-word;
+  }
+  .msg:not(.mine) .msg-bubble {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+    color: #1b2e1c;
+  }
+  .msg.mine .msg-bubble {
+    background: linear-gradient(135deg, #2e7d32, #1b5e20);
+    border: 1px solid rgba(46,125,50,0.3);
+    border-bottom-right-radius: 4px;
+    color: #ffffff;
+  }
+  .msg-translated {
+    font-size: 14px;
+    color: #1b5e20;
+    margin-top: 4px;
+    padding: 6px 10px;
+    background: #c8e6c9;
+    border-radius: 6px;
+    border-left: 3px solid #2e7d32;
+    font-weight: 500;
+  }
+  .system-msg {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 4px 12px;
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 0.5px;
+  }
+  .system-msg span {
+    background: var(--surface2);
+    padding: 2px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  /* ===== INPUT ===== */
+  #input-area {
+    padding: 10px 12px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  #msg-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 10px 16px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none;
+    resize: none;
+    max-height: 100px;
+    line-height: 1.4;
+    transition: border-color 0.2s;
+  }
+  #msg-input:focus { border-color: var(--accent); }
+  #msg-input::placeholder { color: var(--muted); }
+  #send-btn {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2e7d32, #1b5e20);
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 0 15px rgba(46,125,50,0.4);
+    flex-shrink: 0;
+  }
+  #send-btn:active { transform: scale(0.9); }
+
+  /* ===== MEMBERS PAGE ===== */
+  #members-page { overflow-y: auto; }
+  .members-header {
+    padding: 16px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .member-count {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .member-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(30,58,95,0.4);
+    transition: background 0.15s;
+  }
+  .member-item:hover { background: var(--surface2); }
+  .member-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    position: relative;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+  }
+  .status-dot {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--surface);
+  }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.standby { background: var(--yellow); }
+  .status-dot.offline { background: var(--muted); }
+  .member-info { flex: 1; }
+  .member-name { font-weight: 700; font-size: 14px; font-family: 'Rajdhani', sans-serif; letter-spacing: 0.5px; }
+  .member-status {
+    font-size: 11px;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .member-status.online { color: var(--green); }
+  .member-status.standby { color: var(--yellow); }
+  .member-status.offline { color: var(--muted); }
+  .member-role {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .role-master { background: rgba(255,215,0,0.15); color: var(--gold); border: 1px solid rgba(255,215,0,0.3); }
+  .role-officer { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+  .role-member { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ===== ADMIN PAGE ===== */
+  #admin-page { overflow-y: auto; padding: 16px; gap: 16px; }
+  .admin-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .admin-section-title {
+    padding: 12px 16px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1px;
+    background: rgba(0,212,255,0.05);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pending-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(30,58,95,0.3);
+  }
+  .pending-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .pending-info { flex: 1; }
+  .pending-name { font-weight: 700; font-size: 14px; font-family: 'Rajdhani', sans-serif; }
+  .pending-sub { font-size: 11px; color: var(--muted); }
+  .btn-approve {
+    padding: 6px 14px;
+    background: rgba(0,255,136,0.15);
+    border: 1px solid var(--green);
+    color: var(--green);
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    margin-right: 6px;
+    transition: all 0.2s;
+  }
+  .btn-approve:hover { background: rgba(0,255,136,0.25); }
+  .btn-reject {
+    padding: 6px 14px;
+    background: rgba(255,71,87,0.1);
+    border: 1px solid var(--red);
+    color: var(--red);
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    transition: all 0.2s;
+  }
+  .btn-reject:hover { background: rgba(255,71,87,0.2); }
+  .admin-member-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(30,58,95,0.3);
+  }
+  .btn-kick {
+    padding: 5px 12px;
+    background: rgba(255,71,87,0.1);
+    border: 1px solid rgba(255,71,87,0.4);
+    color: var(--red);
+    border-radius: 20px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    transition: all 0.2s;
+  }
+  .btn-kick:hover { background: rgba(255,71,87,0.25); border-color: var(--red); }
+
+  /* ===== PROFILE PAGE ===== */
+  #profile-page { overflow-y: auto; }
+  .profile-hero {
+    background: linear-gradient(180deg, rgba(0,212,255,0.1) 0%, transparent 100%);
+    padding: 30px 20px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .profile-avatar-wrap {
+    width: 80px; height: 80px;
+    margin: 0 auto 12px;
+    position: relative;
+  }
+  .profile-avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+    background: var(--surface2);
+    box-shadow: 0 0 30px rgba(0,212,255,0.3);
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .profile-avatar:hover { transform: scale(1.05); }
+  .avatar-edit-badge {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 24px; height: 24px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+  .profile-name-display {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+  .profile-flag { font-size: 20px; }
+  .profile-section {
+    padding: 16px;
+  }
+  .profile-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+  .profile-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .profile-input:focus { border-color: var(--accent); }
+  .emoji-picker {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 8px;
+  }
+  .emoji-option {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 2px solid transparent;
+  }
+  .emoji-option:hover { background: var(--border); }
+  .emoji-option.selected { border-color: var(--accent); background: rgba(0,212,255,0.1); }
+  .btn-save {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 16px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: opacity 0.2s;
+    box-shadow: 0 0 20px rgba(0,212,255,0.3);
+  }
+  .btn-save:hover { opacity: 0.9; }
+
+  /* ===== ALARM MODAL ===== */
+  #alarm-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    align-items: flex-end;
+    backdrop-filter: blur(4px);
+  }
+  #alarm-modal.show { display: flex; }
+  .modal-sheet {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid var(--border);
+    padding: 20px;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .modal-handle {
+    width: 40px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+  .modal-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .alarm-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .alarm-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+  }
+  .alarm-item.active { border-color: var(--gold); }
+  .alarm-time-display { font-family: 'Rajdhani', sans-serif; font-size: 24px; color: var(--gold); font-weight: 700; }
+  .alarm-label { font-size: 12px; color: var(--muted); }
+  .alarm-toggle {
+    width: 44px; height: 26px;
+    background: var(--border);
+    border-radius: 13px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .alarm-toggle.on { background: var(--gold); }
+  .alarm-toggle::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: left 0.3s;
+  }
+  .alarm-toggle.on::after { left: 21px; }
+  .time-input-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .time-input-wrap { flex: 1; }
+  .time-input-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-family: 'Rajdhani', sans-serif; letter-spacing: 1px; }
+  .time-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 18px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    outline: none;
+    text-align: center;
+  }
+  .time-input:focus { border-color: var(--gold); }
+  .btn-add-alarm {
+    width: 100%;
+    padding: 12px;
+    background: rgba(255,215,0,0.1);
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    color: var(--gold);
+    font-size: 14px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: background 0.2s;
+  }
+  .btn-add-alarm:hover { background: rgba(255,215,0,0.2); }
+  .btn-close-modal {
+    width: 100%;
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* ===== INSTALL PROMPT ===== */
+  #install-prompt {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    left: 12px; right: 12px;
+    background: linear-gradient(135deg, #1a2235, #0d1526);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 16px;
+    z-index: 100;
+    box-shadow: 0 8px 40px rgba(0,212,255,0.2);
+    animation: slideUp 0.4s ease;
+  }
+  #install-prompt.show { display: block; }
+  .install-title { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+  .install-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .install-btns { display: flex; gap: 8px; }
+  .btn-install {
+    flex: 1;
+    padding: 10px;
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 13px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-dismiss {
+    padding: 10px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: 'Rajdhani', sans-serif;
+    cursor: pointer;
+  }
+
+  /* Avatar src buttons */
+  .avatar-src-btn {
+    flex: 1;
+    padding: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .avatar-src-btn.active {
+    background: rgba(0,212,255,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .photo-upload-area {
+    background: var(--surface2);
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .photo-upload-area:hover { border-color: var(--accent); }
+  .profile-avatar img {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  /* Kick confirm */
+  .kick-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .kick-overlay.show { display: flex; }
+  .kick-dialog {
+    background: var(--surface);
+    border: 1px solid var(--red);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 300px;
+    width: 90%;
+    text-align: center;
+    animation: msgIn 0.3s ease;
+  }
+  .kick-dialog h3 { font-family: 'Rajdhani', sans-serif; font-size: 18px; color: var(--red); margin-bottom: 8px; }
+  .kick-dialog p { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+  .kick-btns { display: flex; gap: 10px; }
+  .kick-btns button { flex: 1; padding: 12px; border-radius: 10px; font-family: 'Rajdhani', sans-serif; font-weight: 700; cursor: pointer; border: none; }
+  .kick-confirm { background: var(--red); color: white; }
+  .kick-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border) !important; }
+</style>
+</head>
+<body>
+
+<!-- NOTIFICATION BANNER -->
+<div id="banner">
+  <div class="banner-inner">
+    <div class="banner-icon" id="banner-icon">🐉</div>
+    <div class="banner-content">
+      <div class="banner-name" id="banner-name">DARKWOLF</div>
+      <div class="banner-msg" id="banner-msg">Boss is spawning! Get ready!</div>
+    </div>
+    <div class="banner-time" id="banner-time">now</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="guild-logo">⚔️</div>
+  <div class="guild-info">
+    <div class="guild-name">SHADOW GUILD</div>
+    <div class="guild-sub" id="online-count">🟢 8 online · 30 members</div>
+  </div>
+  <div class="header-actions">
+    <div class="icon-btn lang-btn" id="lang-btn" onclick="toggleLang()">🇯🇵</div>
+    <div class="icon-btn" id="alarm-btn" onclick="openAlarm()">🔔</div>
+    <div class="icon-btn" onclick="showInstallPrompt()">📲</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div id="tabs">
+  <div class="tab active" onclick="switchTab('chat')">
+    <span class="tab-icon">💬</span><span data-i18n="tab_chat">チャット</span>
+  </div>
+  <div class="tab" onclick="switchTab('members')">
+    <span class="tab-icon">👥</span><span data-i18n="tab_members">メンバー</span>
+  </div>
+  <div class="tab" onclick="switchTab('admin')">
+    <span class="tab-icon">👑</span><span data-i18n="tab_admin">管理</span>
+  </div>
+  <div class="tab" onclick="switchTab('profile')">
+    <span class="tab-icon">⚙️</span><span data-i18n="tab_profile">設定</span>
+  </div>
+</div>
+
+<!-- ===== CHAT PAGE ===== -->
+<div class="page active" id="chat-page">
+  <div id="messages">
+    <div class="date-divider">TODAY</div>
+    <div class="system-msg"><span>🏰 Shadow Guild chat started</span></div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#1a2235">🐉</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-name" style="color:#ff6b35">DARKWOLF</span>
+          <span class="msg-flag">🇺🇸</span>
+          <span class="msg-time">18:30</span>
+        </div>
+        <div class="msg-bubble">Boss raid starts in 30 mins! Everyone gather at spawn point!</div>
+        <div class="msg-translated">🌐 ボス戦まで30分！スポーン地点に集合！</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#1a2235">🌸</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-name" style="color:#00ff88">SAKURA99</span>
+          <span class="msg-flag">🇯🇵</span>
+          <span class="msg-time">18:31</span>
+        </div>
+        <div class="msg-bubble">了解です！すぐ行きます！</div>
+        <div class="msg-translated">🌐 Roger that! On my way!</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#1a2235">🦅</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-name" style="color:#ffd700">EAGLEEYE</span>
+          <span class="msg-flag">🇰🇷</span>
+          <span class="msg-time">18:33</span>
+        </div>
+        <div class="msg-bubble">준비 완료! 힐러 필요하면 말해요</div>
+        <div class="msg-translated">🌐 Ready! Let me know if you need a healer</div>
+      </div>
+    </div>
+
+    <div class="msg mine">
+      <div class="msg-avatar" style="background:#003d5c" id="my-avatar-msg">🧙</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-name" style="color:#00d4ff" id="my-name-msg">YOU</span>
+          <span class="msg-flag">🇯🇵</span>
+          <span class="msg-time">18:34</span>
+        </div>
+        <div class="msg-bubble">参加します！タンクで行きます</div>
+        <div class="msg-translated">🌐 I'll join! Going as tank</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <textarea id="msg-input" data-i18n-placeholder="placeholder_msg" placeholder="メッセージ..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button id="send-btn" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<!-- ===== MEMBERS PAGE ===== -->
+<div class="page" id="members-page">
+  <div class="members-header">
+    <span data-i18n="guild_members">ギルドメンバー</span>
+    <span class="member-count" id="member-count-badge">30 <span data-i18n="members">人</span></span>
+  </div>
+  <div id="members-list"></div>
+</div>
+
+<!-- ===== ADMIN PAGE ===== -->
+<div class="page" id="admin-page">
+  <div class="admin-section">
+    <div class="admin-section-title">⏳ <span data-i18n="join_requests">参加リクエスト</span></div>
+    <div id="pending-list"></div>
+  </div>
+  <div class="admin-section" style="margin-top:0">
+    <div class="admin-section-title">👥 <span data-i18n="member_mgmt">メンバー管理</span></div>
+    <div id="admin-members-list"></div>
+  </div>
+</div>
+
+<!-- ===== PROFILE PAGE ===== -->
+<div class="page" id="profile-page">
+  <div class="profile-hero">
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar" id="profile-avatar" onclick="openAvatarPicker()">🧙</div>
+      <div class="avatar-edit-badge" onclick="openAvatarPicker()">📷</div>
+    </div>
+    <div class="profile-name-display" id="profile-name-display">YOU</div>
+  </div>
+  <div class="profile-section">
+
+    <div class="profile-label" data-i18n="label_lang">言語 / LANGUAGE</div>
+    <div style="display:flex;gap:10px;margin-bottom:4px">
+      <button class="avatar-src-btn active" id="btn-lang-ja" onclick="setLang('ja')">🇯🇵 日本語</button>
+      <button class="avatar-src-btn" id="btn-lang-en" onclick="setLang('en')">🇺🇸 English</button>
+      <button class="avatar-src-btn" id="btn-lang-ko" onclick="setLang('ko')">🇰🇷 한국어</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px" data-i18n="lang_note">UIとチャット入力の言語が変わります</div>
+
+    <div class="profile-label" data-i18n="label_name">表示名</div>
+    <input class="profile-input" type="text" id="name-input" value="YOU" maxlength="16" data-i18n-placeholder="placeholder_name" placeholder="あなたの名前...">
+
+    <div class="profile-label" data-i18n="label_avatar">アバター</div>
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button class="avatar-src-btn active" id="btn-src-photo" onclick="setAvatarSrc('photo')">📷 <span data-i18n="photo">写真</span></button>
+      <button class="avatar-src-btn" id="btn-src-emoji" onclick="setAvatarSrc('emoji')">😀 <span data-i18n="emoji">絵文字</span></button>
+    </div>
+
+    <div id="avatar-photo-section">
+      <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="onPhotoSelected(event)">
+      <div class="photo-upload-area" onclick="document.getElementById('photo-input').click()">
+        <div style="font-size:36px;margin-bottom:8px">🖼️</div>
+        <div style="font-size:14px;color:var(--accent);font-family:'Rajdhani',sans-serif;font-weight:700" data-i18n="select_photo">フォトライブラリから選択</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="screenshot_hint">ゲームのスクショを選んでください</div>
+      </div>
+    </div>
+
+    <div id="avatar-emoji-section" style="display:none">
+      <div class="emoji-picker" id="emoji-picker"></div>
+    </div>
+
+    <button class="btn-save" onclick="saveProfile()" data-i18n="save_profile">💾 保存する</button>
+  </div>
+</div>
+
+<!-- ===== CROP MODAL ===== -->
+<div id="crop-modal" style="display:none;position:fixed;inset:0;background:#000;z-index:3000;flex-direction:column">
+  <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+    <button onclick="closeCrop()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:8px 16px;border-radius:20px;font-family:'Rajdhani',sans-serif;font-size:13px;cursor:pointer" data-i18n="cancel">キャンセル</button>
+    <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent);letter-spacing:1px">CROP AVATAR</div>
+    <button onclick="applyCrop()" style="background:linear-gradient(135deg,var(--accent),#0066ff);border:none;color:white;padding:8px 16px;border-radius:20px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer" data-i18n="confirm">決定</button>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative" id="crop-area">
+    <canvas id="crop-canvas" style="max-width:100%;max-height:100%;touch-action:none"></canvas>
+    <div id="crop-circle" style="position:absolute;border:3px solid var(--accent);border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,0.6);pointer-events:none"></div>
+  </div>
+  <div style="padding:12px 16px;text-align:center;font-size:12px;color:var(--muted)" data-i18n="crop_hint">ピンチで拡大 / ドラッグで移動</div>
+</div>
+
+<!-- ===== ALARM MODAL ===== -->
+<div id="alarm-modal" onclick="closeAlarmOutside(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚔️ BATTLE ALARMS</div>
+
+    <div class="alarm-list" id="alarm-list"></div>
+
+    <div class="time-input-row">
+      <div class="time-input-wrap">
+        <div class="time-input-label">HOUR</div>
+        <input type="number" class="time-input" id="alarm-hour" min="0" max="23" placeholder="20">
+      </div>
+      <div class="time-input-wrap">
+        <div class="time-input-label">MINUTE</div>
+        <input type="number" class="time-input" id="alarm-min" min="0" max="59" placeholder="00">
+      </div>
+      <div class="time-input-wrap">
+        <div class="time-input-label">LABEL</div>
+        <input type="text" class="time-input" id="alarm-label" placeholder="Boss" style="font-size:13px">
+      </div>
+    </div>
+    <button class="btn-add-alarm" onclick="addAlarm()">＋ ADD ALARM</button>
+    <button class="btn-close-modal" onclick="closeAlarm()">CLOSE</button>
+  </div>
+</div>
+
+<!-- INSTALL PROMPT -->
+<div id="install-prompt">
+  <div class="install-title">📲 Add to Home Screen</div>
+  <div class="install-sub">ホーム画面に追加してアプリのように使えます。<br>ゲーム中も通知が届きます。</div>
+  <div class="install-btns">
+    <button class="btn-install" onclick="installApp()">ホーム画面に追加</button>
+    <button class="btn-dismiss" onclick="dismissInstall()">後で</button>
+  </div>
+</div>
+
+<!-- KICK CONFIRM -->
+<div class="kick-overlay" id="kick-overlay">
+  <div class="kick-dialog">
+    <h3>⚠️ REMOVE MEMBER</h3>
+    <p id="kick-msg">このメンバーをギルドから除籍しますか？</p>
+    <div class="kick-btns">
+      <button class="kick-cancel" onclick="cancelKick()">キャンセル</button>
+      <button class="kick-confirm" onclick="confirmKick()">除籍する</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ===== SUPABASE =====
+const SUPABASE_URL = 'https://stslfwzpkecskephstcu.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0c2xmd3pwa2Vjc2tlcGhzdGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODY3NzcsImV4cCI6MjA5Mjk2Mjc3N30.ClvTBzgn3qUJz6075WOYMlwtjL5xl9NJg4zPbp8snHI';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false }
+});
+
+// ===== DATA =====
+const AVATARS = ['🧙','🐉','🦅','🌸','⚔️','🛡️','🏹','🔮','🐺','🦁','🐯','🦊','🧊','🔥','⚡','🌊','🗡️','💀','👑','🎯','🌙','☀️','🍀','💎'];
+
+let myProfile = { name: 'YOU', avatar: '🧙' };
+let selectedEmoji = '🧙';
+let kickTarget = null;
+let alarms = [
+  { id: 1, hour: 20, min: 0, label: 'Guild War', on: true },
+  { id: 2, hour: 22, min: 30, label: 'Boss Raid', on: false },
+];
+let alarmTimers = {};
+
+const members = [
+  { id: 1, name: 'DARKWOLF', avatar: '🐉', flag: '🇺🇸', status: 'online', role: 'master', color: '#ff6b35' },
+  { id: 2, name: 'SAKURA99', avatar: '🌸', flag: '🇯🇵', status: 'online', role: 'officer', color: '#00ff88' },
+  { id: 3, name: 'EAGLEEYE', avatar: '🦅', flag: '🇰🇷', status: 'online', role: 'officer', color: '#ffd700' },
+  { id: 4, name: 'IRONCLAD', avatar: '🛡️', flag: '🇺🇸', status: 'standby', role: 'member', color: '#6b8ba4' },
+  { id: 5, name: 'STORMWIND', avatar: '⚡', flag: '🇬🇧', status: 'standby', role: 'member', color: '#6b8ba4' },
+  { id: 6, name: 'MOONRISE', avatar: '🌙', flag: '🇹🇼', status: 'offline', role: 'member', color: '#6b8ba4' },
+  { id: 7, name: 'BLAZER', avatar: '🔥', flag: '🇵🇭', status: 'online', role: 'member', color: '#6b8ba4' },
+  { id: 8, name: 'FROSTBITE', avatar: '🧊', flag: '🇺🇸', status: 'offline', role: 'member', color: '#6b8ba4' },
+];
+
+const pending = [
+  { id: 101, name: 'NEWRIDER', avatar: '🎯', flag: '🇯🇵' },
+  { id: 102, name: 'VORTEX88', avatar: '🌊', flag: '🇺🇸' },
+];
+
+// ===== TABS =====
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tab + '-page').classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ===== MEMBERS =====
+function renderMembers() {
+  const order = { online: 0, standby: 1, offline: 2 };
+  const sorted = [...members].sort((a, b) => order[a.status] - order[b.status]);
+
+  document.getElementById('members-list').innerHTML = sorted.map(m => `
+    <div class="member-item">
+      <div class="member-avatar" style="background:#1a2235">
+        ${m.avatar}
+        <div class="status-dot ${m.status}"></div>
+      </div>
+      <div class="member-info">
+        <div class="member-name" style="color:${m.color}">${m.name} ${m.flag}</div>
+        <div class="member-status ${m.status}">${statusIcon(m.status)} ${t(m.status)}</div>
+      </div>
+      <div class="member-role role-${m.role}">${t(m.role).toUpperCase()}</div>
+    </div>
+  `).join('');
+}
+
+function statusIcon(s) { return s === 'online' ? '🟢' : s === 'standby' ? '🟡' : '⚫'; }
+
+// ===== ADMIN =====
+function renderAdmin() {
+  if (pending.length === 0) {
+    document.getElementById('pending-list').innerHTML = `<div class="system-msg" style="padding:16px"><span>${t('no_pending')}</span></div>`;
+  } else {
+    document.getElementById('pending-list').innerHTML = pending.map(p => `
+      <div class="pending-item" id="pending-${p.id}">
+        <div class="pending-avatar">${p.avatar}</div>
+        <div class="pending-info">
+          <div class="pending-name">${p.name} ${p.flag}</div>
+          <div class="pending-sub">${t('wants_to_join')}</div>
+        </div>
+        <button class="btn-approve" onclick="approveMember(${p.id})">${t('approve')}</button>
+        <button class="btn-reject" onclick="rejectMember(${p.id})">${t('reject')}</button>
+      </div>
+    `).join('');
+  }
+
+  const manageable = members.filter(m => m.role !== 'master');
+  document.getElementById('admin-members-list').innerHTML = manageable.map(m => `
+    <div class="admin-member-item" id="admin-member-${m.id}">
+      <div class="member-avatar" style="background:#1a2235;width:40px;height:40px;font-size:20px">
+        ${m.avatar}
+        <div class="status-dot ${m.status}"></div>
+      </div>
+      <div style="flex:1">
+        <div class="member-name" style="color:${m.color}">${m.name} ${m.flag}</div>
+        <div class="member-status ${m.status}" style="font-size:11px">${t(m.role).toUpperCase()}</div>
+      </div>
+      <button class="btn-kick" onclick="kickMember(${m.id}, '${m.name}')">${t('kick')}</button>
+    </div>
+  `).join('');
+}
+
+function approveMember(id) {
+  const idx = pending.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  const p = pending[idx];
+  members.push({ id: p.id, name: p.name, avatar: p.avatar, flag: p.flag, status: 'online', role: 'member', color: '#6b8ba4' });
+  pending.splice(idx, 1);
+  renderAdmin();
+  renderMembers();
+  showBanner(p.avatar, p.name, '✅ Joined the guild!');
+  addSystemMsg(`${p.name} joined the guild!`);
+}
+
+function rejectMember(id) {
+  const idx = pending.findIndex(p => p.id === id);
+  if (idx !== -1) pending.splice(idx, 1);
+  renderAdmin();
+}
+
+function kickMember(id, name) {
+  kickTarget = id;
+  document.getElementById('kick-msg').textContent = `「${name}」${t('remove_confirm')}`;
+  document.getElementById('kick-overlay').classList.add('show');
+}
+function cancelKick() { document.getElementById('kick-overlay').classList.remove('show'); kickTarget = null; }
+function confirmKick() {
+  if (!kickTarget) return;
+  const idx = members.findIndex(m => m.id === kickTarget);
+  if (idx !== -1) {
+    const m = members[idx];
+    addSystemMsg(`${m.name} was removed from the guild.`);
+    members.splice(idx, 1);
+    renderAdmin();
+    renderMembers();
+  }
+  document.getElementById('kick-overlay').classList.remove('show');
+  kickTarget = null;
+}
+
+// ===== CHAT =====
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  // Supabaseに送信
+  const { error } = await sb.from('messages').insert({
+    name: myProfile.name,
+    avatar: myProfile.photo ? null : (myProfile.avatar || selectedEmoji),
+    photo: myProfile.photo || null,
+    flag: langFlag(),
+    text: text,
+    lang: currentLang,
+  });
+
+  if (error) {
+    console.error('送信エラー:', error);
+  }
+}
+
+function langFlag() {
+  return currentLang === 'ja' ? '🇯🇵' : currentLang === 'ko' ? '🇰🇷' : '🇺🇸';
+}
+
+function renderMsgBubble(msg, isMine) {
+  const now = new Date(msg.created_at);
+  const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const avatarHtml = msg.photo
+    ? `<img src="${msg.photo}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
+    : (msg.avatar || '🧙');
+  const avatarBg = isMine ? '#003d5c' : '#1a2235';
+  const nameColor = isMine ? '#00d4ff' : '#e8f4f8';
+
+  const div = document.createElement('div');
+  div.className = 'msg' + (isMine ? ' mine' : '');
+  div.dataset.id = msg.id;
+  div.innerHTML = `
+    <div class="msg-avatar" style="background:${avatarBg};font-size:${msg.photo ? '0' : ''}">${avatarHtml}</div>
+    <div class="msg-body">
+      <div class="msg-meta">
+        <span class="msg-name" style="color:${nameColor}">${escHtml(msg.name)}</span>
+        <span class="msg-flag">${msg.flag || '🌐'}</span>
+        <span class="msg-time">${time}</span>
+      </div>
+      <div class="msg-bubble">${escHtml(msg.text)}</div>
+      <div class="msg-translated">🌐 <em>...</em></div>
+    </div>
+  `;
+
+  // 翻訳表示（自分の言語以外のメッセージは英語訳、自分のは英語訳を表示）
+  const transDiv = div.querySelector('.msg-translated');
+  if (msg.english) {
+    transDiv.innerHTML = `🌐 ${escHtml(msg.english)}`;
+  } else {
+    transDiv.innerHTML = `🌐 ${escHtml(msg.text)}`;
+  }
+
+  return div;
+}
+
+async function loadMessages() {
+  try {
+    const { data, error } = await sb
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .limit(50);
+
+    if (error) {
+      console.log('loadMessagesエラー:', JSON.stringify(error));
+      return;
+    }
+
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML = '<div class="date-divider">TODAY</div>';
+    data.forEach(msg => {
+      const isMine = msg.name === myProfile.name;
+      msgs.appendChild(renderMsgBubble(msg, isMine));
+    });
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch(e) {
+    console.log('loadMessages例外:', JSON.stringify(e));
+  }
+}
+
+function subscribeMessages() {
+  try {
+    sb.channel('messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+        const msg = payload.new;
+        const isMine = msg.name === myProfile.name;
+        const msgs = document.getElementById('messages');
+        if (document.querySelector(`[data-id="${msg.id}"]`)) return;
+        msgs.appendChild(renderMsgBubble(msg, isMine));
+        msgs.scrollTop = msgs.scrollHeight;
+        if (!isMine) {
+          showBanner(msg.avatar || '💬', msg.name, msg.text);
+        }
+      })
+      .subscribe((status) => {
+        console.log('Supabase接続状態:', status);
+      });
+  } catch(e) {
+    console.log('subscribe例外:', JSON.stringify(e));
+  }
+}
+
+async function initSupabase() {
+  console.log('Supabase初期化開始...');
+  await loadMessages();
+  subscribeMessages();
+  console.log('Supabase初期化完了');
+}
+
+function simulateTranslate(text) {
+  // Demo translations
+  const samples = ['Got it!', 'Ready!', 'On my way!', 'Let\'s go!', 'OK!', 'Roger that!'];
+  return samples[Math.floor(Math.random() * samples.length)];
+}
+
+function addSystemMsg(text) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'system-msg';
+  div.innerHTML = `<span>⚡ ${text}</span>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ===== PROFILE =====
+let avatarMode = 'photo'; // 'photo' | 'emoji'
+let photoDataUrl = null;  // cropped photo result
+
+// Crop state
+let cropImg = new Image();
+let cropX = 0, cropY = 0, cropScale = 1;
+let cropDragging = false, cropLastX = 0, cropLastY = 0;
+let cropPinchDist = 0;
+
+function setAvatarSrc(mode) {
+  avatarMode = mode;
+  document.getElementById('btn-src-photo').classList.toggle('active', mode === 'photo');
+  document.getElementById('btn-src-emoji').classList.toggle('active', mode === 'emoji');
+  document.getElementById('avatar-photo-section').style.display = mode === 'photo' ? 'block' : 'none';
+  document.getElementById('avatar-emoji-section').style.display = mode === 'emoji' ? 'block' : 'none';
+}
+
+function openAvatarPicker() {
+  if (avatarMode === 'photo') {
+    document.getElementById('photo-input').click();
+  }
+}
+
+function onPhotoSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => openCrop(ev.target.result);
+  reader.readAsDataURL(file);
+  // Reset so same file can be re-selected
+  e.target.value = '';
+}
+
+// ===== CROP =====
+function openCrop(dataUrl) {
+  cropImg = new Image();
+  cropImg.onload = () => {
+    cropX = 0; cropY = 0; cropScale = 1;
+    document.getElementById('crop-modal').style.display = 'flex';
+    requestAnimationFrame(initCropCanvas);
+  };
+  cropImg.src = dataUrl;
+}
+
+function initCropCanvas() {
+  const area = document.getElementById('crop-area');
+  const canvas = document.getElementById('crop-canvas');
+  const circle = document.getElementById('crop-circle');
+  const size = Math.min(area.clientWidth, area.clientHeight);
+  canvas.width = size;
+  canvas.height = size;
+
+  // Circle overlay
+  const circleSize = size * 0.75;
+  circle.style.width = circleSize + 'px';
+  circle.style.height = circleSize + 'px';
+
+  // Fit image
+  const scale = Math.max(size / cropImg.width, size / cropImg.height);
+  cropScale = scale;
+  cropX = (size - cropImg.width * scale) / 2;
+  cropY = (size - cropImg.height * scale) / 2;
+  drawCrop();
+  setupCropEvents(canvas);
+}
+
+function drawCrop() {
+  const canvas = document.getElementById('crop-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(cropImg, cropX, cropY, cropImg.width * cropScale, cropImg.height * cropScale);
+}
+
+function setupCropEvents(canvas) {
+  // Touch
+  canvas.ontouchstart = e => {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      cropDragging = true;
+      cropLastX = e.touches[0].clientX;
+      cropLastY = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+      cropPinchDist = getPinchDist(e);
+    }
+  };
+  canvas.ontouchmove = e => {
+    e.preventDefault();
+    if (e.touches.length === 1 && cropDragging) {
+      cropX += e.touches[0].clientX - cropLastX;
+      cropY += e.touches[0].clientY - cropLastY;
+      cropLastX = e.touches[0].clientX;
+      cropLastY = e.touches[0].clientY;
+      drawCrop();
+    } else if (e.touches.length === 2) {
+      const dist = getPinchDist(e);
+      const ratio = dist / cropPinchDist;
+      cropScale *= ratio;
+      cropScale = Math.max(0.1, Math.min(cropScale, 10));
+      cropPinchDist = dist;
+      drawCrop();
+    }
+  };
+  canvas.ontouchend = () => { cropDragging = false; };
+  // Mouse
+  canvas.onmousedown = e => { cropDragging = true; cropLastX = e.clientX; cropLastY = e.clientY; };
+  canvas.onmousemove = e => {
+    if (!cropDragging) return;
+    cropX += e.clientX - cropLastX;
+    cropY += e.clientY - cropLastY;
+    cropLastX = e.clientX; cropLastY = e.clientY;
+    drawCrop();
+  };
+  canvas.onmouseup = () => { cropDragging = false; };
+  canvas.onwheel = e => {
+    cropScale *= e.deltaY < 0 ? 1.1 : 0.9;
+    cropScale = Math.max(0.1, Math.min(cropScale, 10));
+    drawCrop();
+  };
+}
+
+function getPinchDist(e) {
+  const dx = e.touches[0].clientX - e.touches[1].clientX;
+  const dy = e.touches[0].clientY - e.touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+function applyCrop() {
+  const canvas = document.getElementById('crop-canvas');
+  const size = canvas.width;
+  const circleR = size * 0.75 / 2;
+  const cx = size / 2, cy = size / 2;
+
+  // Render circular crop to 200x200
+  const out = document.createElement('canvas');
+  out.width = 200; out.height = 200;
+  const ctx = out.getContext('2d');
+  ctx.beginPath();
+  ctx.arc(100, 100, 100, 0, Math.PI * 2);
+  ctx.clip();
+  // Map circle area from main canvas
+  const sx = cx - circleR, sy = cy - circleR, sw = circleR * 2, sh = circleR * 2;
+  ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, 200, 200);
+
+  photoDataUrl = out.toDataURL('image/jpeg', 0.85);
+  closeCrop();
+  updateAvatarDisplay();
+}
+
+function closeCrop() {
+  document.getElementById('crop-modal').style.display = 'none';
+}
+
+function updateAvatarDisplay() {
+  const el = document.getElementById('profile-avatar');
+  if (photoDataUrl) {
+    el.innerHTML = `<img src="${photoDataUrl}" alt="avatar">`;
+    el.style.padding = '0';
+    el.style.fontSize = '0';
+  } else {
+    el.innerHTML = selectedEmoji;
+    el.style.padding = '';
+    el.style.fontSize = '';
+  }
+}
+
+function renderEmojiPicker() {
+  const picker = document.getElementById('emoji-picker');
+  picker.innerHTML = AVATARS.map(e => `
+    <div class="emoji-option ${e === selectedEmoji ? 'selected' : ''}" onclick="selectEmoji('${e}')">${e}</div>
+  `).join('');
+}
+
+function selectEmoji(emoji) {
+  selectedEmoji = emoji;
+  photoDataUrl = null;
+  updateAvatarDisplay();
+  renderEmojiPicker();
+}
+
+function saveProfile() {
+  const name = document.getElementById('name-input').value.trim() || 'YOU';
+  myProfile = { name: name.toUpperCase(), avatar: photoDataUrl ? null : selectedEmoji, photo: photoDataUrl };
+  document.getElementById('profile-name-display').textContent = myProfile.name;
+
+  // Update chat avatar
+  const msgAvatar = document.getElementById('my-avatar-msg');
+  if (photoDataUrl) {
+    msgAvatar.innerHTML = `<img src="${photoDataUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+    msgAvatar.style.fontSize = '0';
+  } else {
+    msgAvatar.textContent = myProfile.avatar;
+    msgAvatar.style.fontSize = '';
+  }
+  document.getElementById('my-name-msg').textContent = myProfile.name;
+
+  const btn = document.querySelector('.btn-save');
+  btn.textContent = '✅ SAVED!';
+  setTimeout(() => { btn.textContent = '💾 SAVE PROFILE'; }, 1500);
+}
+
+// ===== BANNER =====
+let bannerTimer;
+function showBanner(icon, name, msg) {
+  document.getElementById('banner-icon').textContent = icon;
+  document.getElementById('banner-name').textContent = name;
+  document.getElementById('banner-msg').textContent = msg;
+  document.getElementById('banner-time').textContent = 'now';
+  const banner = document.getElementById('banner');
+  banner.classList.add('show');
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => banner.classList.remove('show'), 4000);
+}
+
+// ===== ALARM =====
+function renderAlarms() {
+  document.getElementById('alarm-list').innerHTML = alarms.length === 0
+    ? '<div style="text-align:center;color:var(--muted);padding:16px;font-size:13px">No alarms set</div>'
+    : alarms.map(a => `
+    <div class="alarm-item ${a.on ? 'active' : ''}">
+      <div>
+        <div class="alarm-time-display">${String(a.hour).padStart(2,'0')}:${String(a.min).padStart(2,'0')}</div>
+        <div class="alarm-label">${a.label}</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="alarm-toggle ${a.on ? 'on' : ''}" onclick="toggleAlarm(${a.id})"></div>
+        <div style="cursor:pointer;color:var(--red);font-size:18px" onclick="deleteAlarm(${a.id})">🗑</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openAlarm() {
+  renderAlarms();
+  document.getElementById('alarm-modal').classList.add('show');
+}
+function closeAlarm() { document.getElementById('alarm-modal').classList.remove('show'); }
+function closeAlarmOutside(e) { if (e.target === document.getElementById('alarm-modal')) closeAlarm(); }
+
+function addAlarm() {
+  const h = parseInt(document.getElementById('alarm-hour').value);
+  const m = parseInt(document.getElementById('alarm-min').value);
+  const label = document.getElementById('alarm-label').value.trim() || 'Battle';
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+    alert('正しい時刻を入力してください');
+    return;
+  }
+  const id = Date.now();
+  alarms.push({ id, hour: h, min: m, label, on: true });
+  scheduleAlarm({ id, hour: h, min: m, label, on: true });
+  document.getElementById('alarm-hour').value = '';
+  document.getElementById('alarm-min').value = '';
+  document.getElementById('alarm-label').value = '';
+  renderAlarms();
+  updateAlarmBtn();
+}
+
+function toggleAlarm(id) {
+  const a = alarms.find(x => x.id === id);
+  if (!a) return;
+  a.on = !a.on;
+  if (a.on) scheduleAlarm(a); else clearAlarmTimer(id);
+  renderAlarms();
+  updateAlarmBtn();
+}
+
+function deleteAlarm(id) {
+  clearAlarmTimer(id);
+  alarms = alarms.filter(a => a.id !== id);
+  renderAlarms();
+  updateAlarmBtn();
+}
+
+function clearAlarmTimer(id) {
+  if (alarmTimers[id]) { clearTimeout(alarmTimers[id]); delete alarmTimers[id]; }
+}
+
+function scheduleAlarm(a) {
+  clearAlarmTimer(a.id);
+  const now = new Date();
+  const target = new Date();
+  target.setHours(a.hour, a.min, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  const ms = target - now;
+  alarmTimers[a.id] = setTimeout(() => {
+    fireAlarm(a);
+  }, ms);
+}
+
+function fireAlarm(a) {
+  showBanner('⚔️', 'BATTLE ALARM', `${a.label} — Time to fight!`);
+  // Vibrate
+  if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+  // Reschedule for next day
+  scheduleAlarm(a);
+}
+
+function updateAlarmBtn() {
+  const btn = document.getElementById('alarm-btn');
+  const hasActive = alarms.some(a => a.on);
+  btn.classList.toggle('alarm-set', hasActive);
+}
+
+// ===== INSTALL =====
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+function showInstallPrompt() { document.getElementById('install-prompt').classList.add('show'); }
+function dismissInstall() { document.getElementById('install-prompt').classList.remove('show'); }
+async function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  } else {
+    alert(t('ios_install'));
+  }
+  dismissInstall();
+}
+
+// ===== i18n =====
+const I18N = {
+  ja: {
+    tab_chat: 'チャット', tab_members: 'メンバー', tab_admin: '管理', tab_profile: '設定',
+    guild_members: 'ギルドメンバー', members: '人',
+    join_requests: '参加リクエスト', member_mgmt: 'メンバー管理',
+    label_lang: '言語 / LANGUAGE', lang_note: 'UIとチャット入力の言語が変わります',
+    label_name: '表示名', label_avatar: 'アバター',
+    photo: '写真', emoji: '絵文字',
+    select_photo: 'フォトライブラリから選択', screenshot_hint: 'ゲームのスクショを選んでください',
+    save_profile: '💾 保存する',
+    cancel: 'キャンセル', confirm: '決定',
+    crop_hint: 'ピンチで拡大 / ドラッグで移動',
+    placeholder_msg: 'メッセージ...', placeholder_name: 'あなたの名前...',
+    online: 'オンライン', standby: 'スタンバイ', offline: 'オフライン',
+    master: 'マスター', officer: 'オフィサー', member: 'メンバー',
+    approve: '✓ OK', reject: '✗', kick: '除籍',
+    wants_to_join: '参加希望',
+    battle_alarm: '⚔️ バトルアラーム',
+    add_alarm: '＋ アラーム追加', close: '閉じる',
+    hour: '時', minute: '分', alarm_label: 'ラベル',
+    install_title: '📲 ホーム画面に追加',
+    install_sub: 'ホーム画面に追加してアプリのように使えます。\nゲーム中も通知が届きます。',
+    install_btn: 'ホーム画面に追加', later: '後で',
+    remove_member: '⚠️ メンバーを除籍',
+    remove_confirm: 'をギルドから除籍しますか？',
+    no_pending: '参加リクエストなし',
+    ios_install: '📲 Safariの場合：\n①下の「共有」ボタンをタップ\n②「ホーム画面に追加」を選択\n\nAndroidの場合：\nブラウザメニューから「ホーム画面に追加」',
+  },
+  en: {
+    tab_chat: 'CHAT', tab_members: 'MEMBERS', tab_admin: 'ADMIN', tab_profile: 'PROFILE',
+    guild_members: 'GUILD MEMBERS', members: 'members',
+    join_requests: 'JOIN REQUESTS', member_mgmt: 'MEMBER MANAGEMENT',
+    label_lang: 'LANGUAGE', lang_note: 'Changes UI and chat language',
+    label_name: 'DISPLAY NAME', label_avatar: 'AVATAR',
+    photo: 'Photo', emoji: 'Emoji',
+    select_photo: 'Select from Photo Library', screenshot_hint: 'Choose your game screenshot',
+    save_profile: '💾 SAVE PROFILE',
+    cancel: 'Cancel', confirm: 'Apply',
+    crop_hint: 'Pinch to zoom / Drag to move',
+    placeholder_msg: 'Message...', placeholder_name: 'Your name...',
+    online: 'Online', standby: 'Standby', offline: 'Offline',
+    master: 'MASTER', officer: 'OFFICER', member: 'MEMBER',
+    approve: '✓ OK', reject: '✗', kick: 'Remove',
+    wants_to_join: 'Wants to join',
+    battle_alarm: '⚔️ BATTLE ALARM',
+    add_alarm: '＋ ADD ALARM', close: 'CLOSE',
+    hour: 'HOUR', minute: 'MIN', alarm_label: 'LABEL',
+    install_title: '📲 Add to Home Screen',
+    install_sub: 'Use like an app from your home screen.\nReceive notifications during games.',
+    install_btn: 'Add to Home Screen', later: 'Later',
+    remove_member: '⚠️ REMOVE MEMBER',
+    remove_confirm: ' — remove from guild?',
+    no_pending: 'No pending requests',
+    ios_install: '📲 Safari: Tap Share → Add to Home Screen\n\nAndroid: Browser menu → Add to Home Screen',
+  },
+  ko: {
+    tab_chat: '채팅', tab_members: '멤버', tab_admin: '관리', tab_profile: '설정',
+    guild_members: '길드 멤버', members: '명',
+    join_requests: '가입 요청', member_mgmt: '멤버 관리',
+    label_lang: '언어 / LANGUAGE', lang_note: 'UI와 채팅 입력 언어가 변경됩니다',
+    label_name: '표시 이름', label_avatar: '아바타',
+    photo: '사진', emoji: '이모지',
+    select_photo: '포토 라이브러리에서 선택', screenshot_hint: '게임 스크린샷을 선택하세요',
+    save_profile: '💾 저장하기',
+    cancel: '취소', confirm: '확인',
+    crop_hint: '핀치로 확대 / 드래그로 이동',
+    placeholder_msg: '메시지...', placeholder_name: '이름을 입력하세요...',
+    online: '온라인', standby: '대기중', offline: '오프라인',
+    master: '마스터', officer: '오피서', member: '멤버',
+    approve: '✓ OK', reject: '✗', kick: '추방',
+    wants_to_join: '가입 희망',
+    battle_alarm: '⚔️ 배틀 알람',
+    add_alarm: '＋ 알람 추가', close: '닫기',
+    hour: '시', minute: '분', alarm_label: '라벨',
+    install_title: '📲 홈 화면에 추가',
+    install_sub: '홈 화면에 추가하여 앱처럼 사용할 수 있습니다.\n게임 중에도 알림을 받을 수 있습니다.',
+    install_btn: '홈 화면에 추가', later: '나중에',
+    remove_member: '⚠️ 멤버 추방',
+    remove_confirm: ' — 길드에서 추방하시겠습니까?',
+    no_pending: '가입 요청 없음',
+    ios_install: '📲 Safari: 공유 → 홈 화면에 추가\n\nAndroid: 브라우저 메뉴 → 홈 화면에 추가',
+  }
+};
+
+let currentLang = 'ja';
+
+function t(key) {
+  return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
+}
+
+function applyI18n() {
+  // text nodes
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  // placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  // lang button highlight
+  ['ja','en','ko'].forEach(l => {
+    const btn = document.getElementById('btn-lang-' + l);
+    if (btn) btn.classList.toggle('active', l === currentLang);
+  });
+  // header flag
+  const flags = { ja: '🇯🇵', en: '🇺🇸', ko: '🇰🇷' };
+  document.getElementById('lang-btn').textContent = flags[currentLang];
+  // re-render dynamic lists
+  renderMembers();
+  renderAdmin();
+  // alarm modal if open
+  renderAlarms();
+  // install prompt texts
+  document.querySelector('.install-title').textContent = t('install_title');
+  document.querySelector('.install-sub').textContent = t('install_sub');
+  document.querySelector('.btn-install').textContent = t('install_btn');
+  document.querySelector('.btn-dismiss').textContent = t('later');
+  // alarm modal buttons
+  document.querySelector('.btn-add-alarm').textContent = t('add_alarm');
+  document.querySelector('.btn-close-modal').textContent = t('close');
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  applyI18n();
+}
+
+function toggleLang() {
+  // Quick toggle: ja → en → ko → ja
+  const order = ['ja', 'en', 'ko'];
+  const next = order[(order.indexOf(currentLang) + 1) % order.length];
+  setLang(next);
+}
+
+// ===== INIT =====
+renderMembers();
+renderAdmin();
+renderEmojiPicker();
+applyI18n();
+alarms.filter(a => a.on).forEach(scheduleAlarm);
+updateAlarmBtn();
+initSupabase();
+
+// Demo banner after 2 seconds
+setTimeout(() => {
+  showBanner('⚔️', 'GuildChat', 'リアルタイム接続中...');
+}, 1000);
+</script>
+</body>
+</html>
